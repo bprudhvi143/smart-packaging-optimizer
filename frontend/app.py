@@ -30,11 +30,25 @@ def fetch_data():
     conn.close()
     return df
 
-# placeholder for inventory logic
+# ---------------- INVENTORY FUNCTIONS ----------------
 def fetch_inventory():
-    # stub: would normally query a table like 'inventory'
-    cols = ["box_size", "stock", "usage_count"]
-    return pd.DataFrame(columns=cols)
+    try:
+        resp = requests.get("http://127.0.0.1:8000/inventory", timeout=5)
+        data = resp.json().get("inventory", [])
+        return pd.DataFrame(data)
+    except Exception:
+        return pd.DataFrame(columns=["box_size", "stock", "usage_count"])
+
+
+def update_inventory(box_size: str, change: int):
+    try:
+        requests.post(
+            "http://127.0.0.1:8000/inventory/update",
+            params={"box_size": box_size, "change": change},
+            timeout=5
+        )
+    except Exception:
+        st.error("Failed to update inventory. Is backend running?")
 
 # sidebar controls
 with st.sidebar:
@@ -104,6 +118,20 @@ with tab2:
         st.info("Inventory data not available yet.")
     else:
         st.dataframe(inv_df)
+
+    st.markdown("---")
+    st.write("### Adjust Stock")
+    col_a, col_b = st.columns(2)
+    with col_a:
+        box_input = st.text_input("Box Size")
+    with col_b:
+        qty_input = st.number_input("Change (use negative to reduce)", value=0)
+    if st.button("Update Inventory"):
+        if box_input and qty_input != 0:
+            update_inventory(box_input, int(qty_input))
+            st.success("Inventory updated, refresh the tab to see changes.")
+        else:
+            st.warning("Enter box size and non-zero change.")
 
 # ---------------- ANALYTICS TAB ----------------
 with tab3:

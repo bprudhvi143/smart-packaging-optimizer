@@ -2,9 +2,14 @@ from fastapi import FastAPI
 from pydantic import BaseModel
 from models.optimizer import SmartPackagingOptimizer
 from utils.carbon_calculator import CarbonCalculator
-from database.db import insert_shipment
+from database.db import insert_shipment, initialize_db, get_inventory, adjust_inventory
 
 app = FastAPI()
+
+# ensure database tables exist on startup
+@app.on_event("startup")
+def startup_event():
+    initialize_db()
 
 optimizer = SmartPackagingOptimizer("data/boxes.csv")
 carbon_calc = CarbonCalculator("data/material_carbon_data.csv")
@@ -59,7 +64,22 @@ def optimize_packaging(product: Product):
 
     insert_shipment(shipment_data)
 
+    # update inventory: reduce stock by 1 and record usage
+    adjust_inventory(result["selected_box"], change=-1, record_use=True)
+
     return {
         "optimization": result,
         "carbon_analysis": carbon_result
     }
+
+@app.get("/inventory")
+def inventory_list():
+    """Return current inventory status."""
+    return {"inventory": get_inventory()}
+
+
+@app.post("/inventory/update")
+def inventory_update(box_size: str, change: int):
+    """Adjust stock for a box size. Positive change adds stock, negative removes."""
+    adjust_inventory(box_size, change=change)
+    return {"status": "ok"}
