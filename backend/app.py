@@ -2,7 +2,16 @@ from fastapi import FastAPI
 from pydantic import BaseModel
 from models.optimizer import SmartPackagingOptimizer
 from utils.carbon_calculator import CarbonCalculator
-from database.db import insert_shipment, initialize_db, get_inventory, adjust_inventory
+from database.db import (
+    insert_shipment,
+    initialize_db,
+    get_inventory,
+    adjust_inventory,
+    get_shipments,
+)
+import pandas as pd
+from sklearn.linear_model import LinearRegression
+from datetime import timedelta
 
 app = FastAPI()
 
@@ -76,6 +85,42 @@ def optimize_packaging(product: Product):
 def inventory_list():
     """Return current inventory status."""
     return {"inventory": get_inventory()}
+
+@app.get("/forecast")
+def demand_forecast(weeks: int = 8):
+    """Predict next week's box demand using simple linear regression on weekly counts."""
+    rows = get_shipments()
+    df = pd.DataFrame(rows)
+    if df.empty or "created_at" not in df.columns:
+        return {"error": "insufficient data"}
+
+    df["created_at"] = pd.to_datetime(df["created_at"])
+    # group by week start (Monday)
+    weekly = df.groupby([pd.Grouper(key="created_at", freq="W-MON"), "selected_box"]).size().unstack(fill_value=0)
+    overall = weekly.sum(axis=1).reset_index(name="count")
+    overall["week_num"] = range(len(overall))
+
+    # train on all weeks
+    X = overall[["week_num"]]
+    y = overall["count"]
+    model = LinearRegression()
+    model.fit(X, y)
+    next_week_num = [[len(overall)]]
+    next_overall = int(model.predict(next_week_num)[0])
+
+    # by box
+    box_preds = {}
+    for box in weekly.columns:
+        series = weekly[box].reset_index(name="count")
+        series["week_num"] = range(len(series))
+        if len(series) >= 2:
+            m = LinearRegression().fit(series[["week_num"]], series["count"])
+            box_preds[box] = int(m.predict([[len(series)]])[0])
+        else:
+            box_preds[box] = int(series["count"].iloc[-1] if not series.empty else 0)
+
+    history = overall["count"].tolist()
+    return {"overall_next_week": next_overall, "by_box": box_preds, "history": history}
 
 
 @app.post("/inventory/update")

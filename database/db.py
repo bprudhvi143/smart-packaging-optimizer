@@ -92,3 +92,14 @@ def adjust_inventory(box_size: str, change: int = 0, record_use: bool = False):
     connection.commit()
     cursor.close()
     connection.close()
+
+
+def get_shipments():
+    """Return all shipment rows as list of dicts."""
+    connection = get_connection()
+    cursor = connection.cursor(dictionary=True)
+    cursor.execute("SELECT * FROM shipments")
+    rows = cursor.fetchall()
+    cursor.close()
+    connection.close()
+    return rows

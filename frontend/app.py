@@ -175,5 +175,29 @@ with tab3:
         )
         st.plotly_chart(fig2, use_container_width=True)
 
+        # demand forecasting section
+        st.markdown("### 📈 Demand Forecast")
+        try:
+            resp = requests.get("http://127.0.0.1:8000/forecast", timeout=5)
+            fc = resp.json()
+            if "error" in fc:
+                st.warning(fc["error"])
+            else:
+                st.metric("Predicted shipments next week", fc.get("overall_next_week", 0))
+                by_box = fc.get("by_box", {})
+                if by_box:
+                    df_pred = pd.DataFrame(list(by_box.items()), columns=["Box", "Predicted"])
+                    st.table(df_pred)
+                # plot history with predicted point
+                hist = fc.get("history", [])
+                if hist:
+                    weeks = list(range(1, len(hist) + 1))
+                    fig3 = px.line(x=weeks, y=hist, title="Weekly Shipments History", markers=True)
+                    # add predicted point
+                    fig3.add_scatter(x=[len(hist)+1], y=[fc.get("overall_next_week", 0)], mode='markers', name='Forecast')
+                    st.plotly_chart(fig3, use_container_width=True)
+        except Exception:
+            st.warning("Forecast service unavailable")
+
     else:
         st.info("No shipment data available yet.")
