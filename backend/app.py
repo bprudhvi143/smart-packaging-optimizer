@@ -8,11 +8,16 @@ from database.db import (
     get_inventory,
     adjust_inventory,
     get_shipments,
+    create_reusable_package,
+    scan_reusable_package,
+    get_reusable_packages,
+    update_package_condition,
 )
 import pandas as pd
 from sklearn.linear_model import LinearRegression
 from datetime import timedelta
 import os
+import uuid
 
 app = FastAPI()
 
@@ -142,6 +147,64 @@ def storage_report():
     total_area = df["total_area"].sum()
     result = df["box_size stock usage_count area_per_box total_area inefficiency".split()].to_dict(orient="records")
     return {"storage": result, "total_area": total_area}
+
+@app.post("/reusable/create")
+def create_reusable(box_size: str):
+    """Generate a new reusable package with unique QR ID."""
+    qr_id = str(uuid.uuid4())
+    create_reusable_package(qr_id, box_size)
+    return {"qr_id": qr_id, "box_size": box_size}
+
+
+@app.post("/reusable/scan")
+def scan_package(qr_id: str):
+    """Record a reuse event."""
+    scan_reusable_package(qr_id)
+    return {"status": "scanned", "qr_id": qr_id}
+
+
+@app.get("/reusable/list")
+def list_reusable():
+    """Get all reusable packages with reuse history."""
+    packages = get_reusable_packages()
+    return {"packages": packages}
+
+
+@app.get("/reuse-score")
+def reuse_score():
+    """Calculate store sustainability rating based on reuse."""
+    packages = get_reusable_packages()
+    if not packages:
+        return {"total": 0, "avg_reuse": 0, "sustainability_rating": "N/A"}
+    total_reuses = sum(p.get("reuse_count", 0) for p in packages)
+    avg_reuse = total_reuses / len(packages) if packages else 0
+    # rating: 0 reuses=unfair, 5+=excellent
+    if avg_reuse >= 5:
+        rating = "Excellent"
+    elif avg_reuse >= 3:
+        rating = "Good"
+    elif avg_reuse >= 1:
+        rating = "Fair"
+    else:
+        rating = "Low"
+    return {
+        "total_packages": len(packages),
+        "total_reuses": total_reuses,
+        "avg_reuse": round(avg_reuse, 2),
+        "sustainability_rating": rating
+    }
+
+
+class PackageCondition(BaseModel):
+    qr_id: str
+    condition: str
+
+
+@app.post("/reusable/condition")
+def update_condition(data: PackageCondition):
+    """Update package condition."""
+    update_package_condition(data.qr_id, data.condition)
+    return {"status": "ok"}
 
 
 @app.post("/inventory/update")

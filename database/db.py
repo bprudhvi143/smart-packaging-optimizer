@@ -20,6 +20,17 @@ def initialize_db():
         usage_count INT DEFAULT 0
     )
     """)
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS reusable_packages (
+        qr_id VARCHAR(255) PRIMARY KEY,
+        box_size VARCHAR(255),
+        reuse_count INT DEFAULT 0,
+        created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        last_used_date TIMESTAMP DEFAULT NULL,
+        condition VARCHAR(50) DEFAULT 'excellent',
+        FOREIGN KEY (box_size) REFERENCES inventory(box_size)
+    )
+    """)
     conn.commit()
     cur.close()
     conn.close()
@@ -103,3 +114,54 @@ def get_shipments():
     cursor.close()
     connection.close()
     return rows
+
+
+def create_reusable_package(qr_id: str, box_size: str):
+    """Create a new reusable package with QR ID."""
+    connection = get_connection()
+    cursor = connection.cursor()
+    cursor.execute(
+        "INSERT INTO reusable_packages (qr_id, box_size) VALUES (%s, %s)",
+        (qr_id, box_size)
+    )
+    connection.commit()
+    cursor.close()
+    connection.close()
+
+
+def scan_reusable_package(qr_id: str):
+    """Record a reuse event for a package."""
+    connection = get_connection()
+    cursor = connection.cursor()
+    cursor.execute(
+        "UPDATE reusable_packages SET reuse_count = reuse_count + 1, "
+        "last_used_date = CURRENT_TIMESTAMP WHERE qr_id = %s",
+        (qr_id,)
+    )
+    connection.commit()
+    cursor.close()
+    connection.close()
+
+
+def get_reusable_packages():
+    """Return all reusable packages."""
+    connection = get_connection()
+    cursor = connection.cursor(dictionary=True)
+    cursor.execute("SELECT * FROM reusable_packages ORDER BY created_date DESC")
+    rows = cursor.fetchall()
+    cursor.close()
+    connection.close()
+    return rows
+
+
+def update_package_condition(qr_id: str, condition: str):
+    """Update condition of a package (excellent/good/fair/damaged)."""
+    connection = get_connection()
+    cursor = connection.cursor()
+    cursor.execute(
+        "UPDATE reusable_packages SET condition = %s WHERE qr_id = %s",
+        (condition, qr_id)
+    )
+    connection.commit()
+    cursor.close()
+    connection.close()

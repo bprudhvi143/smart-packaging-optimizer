@@ -59,6 +59,47 @@ def fetch_storage():
     except Exception:
         return {"storage": [], "total_area": 0}
 
+
+def fetch_reusable_packages():
+    try:
+        resp = requests.get("http://127.0.0.1:8000/reusable/list", timeout=5)
+        data = resp.json().get("packages", [])
+        return pd.DataFrame(data) if data else pd.DataFrame()
+    except Exception:
+        return pd.DataFrame()
+
+
+def create_new_reusable(box_size: str):
+    try:
+        resp = requests.post(
+            "http://127.0.0.1:8000/reusable/create",
+            params={"box_size": box_size},
+            timeout=5
+        )
+        return resp.json().get("qr_id")
+    except Exception:
+        st.error("Failed to create reusable package")
+        return None
+
+
+def scan_package(qr_id: str):
+    try:
+        requests.post(
+            "http://127.0.0.1:8000/reusable/scan",
+            params={"qr_id": qr_id},
+            timeout=5
+        )
+    except Exception:
+        st.error("Failed to scan package")
+
+
+def fetch_reuse_score():
+    try:
+        resp = requests.get("http://127.0.0.1:8000/reuse-score", timeout=5)
+        return resp.json()
+    except Exception:
+        return {}
+
 # sidebar controls
 with st.sidebar:
     st.header("Controls")
@@ -66,7 +107,7 @@ with st.sidebar:
     # additional filters can go here (date range, category, etc.)
 
 # create tabs layout
-tab1, tab2, tab3 = st.tabs(["Optimize", "Inventory", "Analytics"])
+tab1, tab2, tab3, tab4 = st.tabs(["Optimize", "Inventory", "Analytics", "Reusable"])
 
 # ---------------- INPUT/OPTIMIZATION TAB ----------------
 with tab1:
@@ -224,3 +265,58 @@ with tab3:
 
     else:
         st.info("No shipment data available yet.")
+
+# ---------------- REUSABLE PACKAGING TAB ----------------
+with tab4:
+    st.subheader("♻ Reusable Packaging Tracker")
+    
+    # Sustainability score
+    score = fetch_reuse_score()
+    if score:
+        col_a, col_b, col_c = st.columns(3)
+        col_a.metric("Total Packages", score.get("total_packages", 0))
+        col_b.metric("Total Reuses", score.get("total_reuses", 0))
+        col_c.metric("Avg Reuses/Package", score.get("avg_reuse", 0))
+        
+        rating = score.get("sustainability_rating", "N/A")
+        if rating == "Excellent":
+            st.success(f"🏆 Store Sustainability Rating: {rating}")
+        elif rating == "Good":
+            st.info(f"✅ Store Sustainability Rating: {rating}")
+        elif rating == "Fair":
+            st.warning(f"⚠ Store Sustainability Rating: {rating}")
+        else:
+            st.error(f"❌ Store Sustainability Rating: {rating}")
+    
+    st.markdown("---")
+    st.write("### Create New Reusable Package")
+    col1, col2 = st.columns(2)
+    with col1:
+        available_boxes = ["B1", "B2", "B3", "B4", "B5", "B6", "B7"]
+        selected_box = st.selectbox("Select Box Size", available_boxes)
+    with col2:
+        if st.button("Generate QR Code"):
+            qr_id = create_new_reusable(selected_box)
+            if qr_id:
+                st.success(f"✅ QR Generated: {qr_id}")
+                st.code(qr_id)
+    
+    st.markdown("---")
+    st.write("### Scan Package for Reuse")
+    packages_df = fetch_reusable_packages()
+    if not packages_df.empty:
+        qr_options = packages_df["qr_id"].tolist()
+        selected_qr = st.selectbox("Select QR to Scan", qr_options)
+        if st.button("Record Reuse"):
+            scan_package(selected_qr)
+            st.success("✅ Reuse recorded!")
+    else:
+        st.info("No reusable packages yet. Create one above.")
+    
+    st.markdown("---")
+    st.write("### Package Reuse History")
+    if not packages_df.empty:
+        display_cols = ["qr_id", "box_size", "reuse_count", "condition", "last_used_date"]
+        st.dataframe(packages_df[display_cols])
+    else:
+        st.info("No reusable packages to display.")
