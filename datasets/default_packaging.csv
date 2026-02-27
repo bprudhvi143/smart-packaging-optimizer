@@ -1,0 +1,6 @@
+product_category,default_box_length,default_box_width,default_box_height
+electronics_small,30,20,10
+electronics_large,50,40,25
+clothing,40,30,10
+books,30,25,8
+accessories,25,20,10

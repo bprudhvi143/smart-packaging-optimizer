@@ -1,0 +1,8 @@
+box_id,length_cm,width_cm,height_cm,max_weight_kg,material_type,cost_per_box
+B1,10,10,5,1,cardboard,8
+B2,15,10,8,2,cardboard,12
+B3,20,15,10,3,recycled_cardboard,18
+B4,25,20,12,5,recycled_cardboard,25
+B5,30,20,15,7,cardboard,32
+B6,40,30,20,10,recycled_cardboard,50
+B7,50,40,25,15,cardboard,75

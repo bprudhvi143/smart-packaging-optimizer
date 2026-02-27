@@ -1,0 +1,5 @@
+material_type,co2_per_kg_kg,cost_per_kg,recyclability_score
+cardboard,1.1,20,8
+recycled_cardboard,0.7,25,9
+plastic,6.0,50,3
+biodegradable_foam,2.0,60,7
