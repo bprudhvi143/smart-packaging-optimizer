@@ -12,6 +12,7 @@ from database.db import (
 import pandas as pd
 from sklearn.linear_model import LinearRegression
 from datetime import timedelta
+import os
 
 app = FastAPI()
 
@@ -121,6 +122,26 @@ def demand_forecast(weeks: int = 8):
 
     history = overall["count"].tolist()
     return {"overall_next_week": next_overall, "by_box": box_preds, "history": history}
+
+@app.get("/storage")
+def storage_report():
+    """Generate storage optimization report based on current inventory."""
+    inv = get_inventory()
+    if not inv:
+        return {"storage": [], "total_area": 0}
+    df_inv = pd.DataFrame(inv)
+    # load box dimensions
+    base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    boxes_path = os.path.join(base, "data", "boxes.csv")
+    boxes = pd.read_csv(boxes_path)
+    df = df_inv.merge(boxes, left_on="box_size", right_on="box_id", how="left")
+    # compute footprint (area) per unit
+    df["area_per_box"] = df["length_cm"] * df["width_cm"]
+    df["total_area"] = df["area_per_box"] * df["stock"]
+    df["inefficiency"] = df["stock"] - df["usage_count"]
+    total_area = df["total_area"].sum()
+    result = df["box_size stock usage_count area_per_box total_area inefficiency".split()].to_dict(orient="records")
+    return {"storage": result, "total_area": total_area}
 
 
 @app.post("/inventory/update")

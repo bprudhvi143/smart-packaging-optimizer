@@ -50,6 +50,15 @@ def update_inventory(box_size: str, change: int):
     except Exception:
         st.error("Failed to update inventory. Is backend running?")
 
+
+def fetch_storage():
+    try:
+        resp = requests.get("http://127.0.0.1:8000/storage", timeout=5)
+        data = resp.json()
+        return data
+    except Exception:
+        return {"storage": [], "total_area": 0}
+
 # sidebar controls
 with st.sidebar:
     st.header("Controls")
@@ -118,6 +127,20 @@ with tab2:
         st.info("Inventory data not available yet.")
     else:
         st.dataframe(inv_df)
+
+        # storage optimization report
+        st.markdown("---")
+        st.write("### 📦 Storage Overview")
+        storage = fetch_storage()
+        st.write(f"**Total shelf area occupied:** {storage.get('total_area',0)} cm²")
+        st.table(pd.DataFrame(storage.get('storage', [])))
+        # visualize inefficiency
+        if storage.get('storage'):
+            df_st = pd.DataFrame(storage['storage'])
+            fig = px.treemap(df_st, path=["box_size"], values="total_area",
+                             color="inefficiency", color_continuous_scale="Reds",
+                             title="Storage footprint & inefficiency")
+            st.plotly_chart(fig, use_container_width=True)
 
     st.markdown("---")
     st.write("### Adjust Stock")
