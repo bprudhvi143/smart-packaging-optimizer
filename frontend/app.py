@@ -129,7 +129,7 @@ with tab1:
 
         try:
             response = requests.post(
-                "http://127.0.0.1:8000/optimize",
+                "https://smart-packaging-optimizer.onrender.com",
                 json={
                     "length": length,
                     "width": width,
