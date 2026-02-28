@@ -1,7 +1,6 @@
 import streamlit as st
 import requests
 import pandas as pd
-import mysql.connector
 import plotly.express as px
 
 # ---------------- PAGE CONFIG ----------------
@@ -20,15 +19,18 @@ Reducing retail packaging waste, cost, and carbon emissions using intelligent bo
 
 # ---------------- FETCH DATA FUNCTION ----------------
 def fetch_data():
-    conn = mysql.connector.connect(
-        host="localhost",
-        user="packaging_user",
-        password="Pack@123",
-        database="smart_packaging"
-    )
-    df = pd.read_sql("SELECT * FROM shipments", conn)
-    conn.close()
-    return df
+    """Retrieve past shipment records via backend API.
+
+    The frontend used to connect directly to MySQL, but the correct
+    architecture is to go through FastAPI. A `/shipments` endpoint was
+    added to the backend for this purpose.
+    """
+    try:
+        resp = requests.get("http://127.0.0.1:8000/shipments", timeout=5)
+        data = resp.json().get("shipments", [])
+        return pd.DataFrame(data)
+    except Exception:
+        return pd.DataFrame()
 
 # ---------------- INVENTORY FUNCTIONS ----------------
 def fetch_inventory():
@@ -64,7 +66,11 @@ def fetch_reusable_packages():
     try:
         resp = requests.get("http://127.0.0.1:8000/reusable/list", timeout=5)
         data = resp.json().get("packages", [])
-        return pd.DataFrame(data) if data else pd.DataFrame()
+        df = pd.DataFrame(data) if data else pd.DataFrame()
+        # backend now returns `package_condition` renamed back to `condition`
+        if "package_condition" in df.columns:
+            df = df.rename(columns={"package_condition": "condition"})
+        return df
     except Exception:
         return pd.DataFrame()
 

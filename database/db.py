@@ -27,10 +27,20 @@ def initialize_db():
         reuse_count INT DEFAULT 0,
         created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         last_used_date TIMESTAMP DEFAULT NULL,
-        condition VARCHAR(50) DEFAULT 'excellent',
+        package_condition VARCHAR(50) DEFAULT 'excellent',
         FOREIGN KEY (box_size) REFERENCES inventory(box_size)
     )
     """)
+    # if the table existed previously with a column named `condition`,
+    # attempt to rename it so future operations work without quoting.
+    try:
+        cur.execute("""
+            ALTER TABLE reusable_packages
+            CHANGE COLUMN `condition` package_condition VARCHAR(50) DEFAULT 'excellent'
+        """)
+    except mysql.connector.Error:
+        # ignore errors (either column doesn't exist or already renamed)
+        pass
     conn.commit()
     cur.close()
     conn.close()
@@ -155,11 +165,11 @@ def get_reusable_packages():
 
 
 def update_package_condition(qr_id: str, condition: str):
-    """Update condition of a package (excellent/good/fair/damaged)."""
+    """Update package condition (excellent/good/fair/damaged)."""
     connection = get_connection()
     cursor = connection.cursor()
     cursor.execute(
-        "UPDATE reusable_packages SET condition = %s WHERE qr_id = %s",
+        "UPDATE reusable_packages SET package_condition = %s WHERE qr_id = %s",
         (condition, qr_id)
     )
     connection.commit()

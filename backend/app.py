@@ -165,9 +165,20 @@ def scan_package(qr_id: str):
 
 @app.get("/reusable/list")
 def list_reusable():
-    """Get all reusable packages with reuse history."""
+    """Get all reusable packages with reuse history.
+
+    The database column was renamed to `package_condition` to avoid using a
+    reserved word. For backwards compatibility the JSON payload returns a
+    `condition` field so the frontend doesn't need to change.
+    """
     packages = get_reusable_packages()
-    return {"packages": packages}
+    # normalize keys for frontend convenience
+    normalized = []
+    for p in packages:
+        if "package_condition" in p:
+            p["condition"] = p.pop("package_condition")
+        normalized.append(p)
+    return {"packages": normalized}
 
 
 @app.get("/reuse-score")
@@ -206,6 +217,15 @@ def update_condition(data: PackageCondition):
     update_package_condition(data.qr_id, data.condition)
     return {"status": "ok"}
 
+
+
+
+# simple helper endpoint to fetch historical shipments for analytics
+@app.get("/shipments")
+def list_shipments():
+    """Return all recorded shipments for analytics/dashboard."""
+    rows = get_shipments()
+    return {"shipments": rows}
 
 @app.post("/inventory/update")
 def inventory_update(box_size: str, change: int):
