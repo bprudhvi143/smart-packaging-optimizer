@@ -26,8 +26,16 @@ app = FastAPI()
 def startup_event():
     initialize_db()
 
-optimizer = SmartPackagingOptimizer("data/boxes.csv")
-carbon_calc = CarbonCalculator("data/material_carbon_data.csv")
+import os
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+PROJECT_ROOT = os.path.dirname(BASE_DIR)
+
+boxes_path = os.path.join(PROJECT_ROOT, "data", "boxes.csv")
+carbon_path = os.path.join(PROJECT_ROOT, "data", "material_carbon_data.csv")
+
+optimizer = SmartPackagingOptimizer(boxes_path)
+carbon_calc = CarbonCalculator(carbon_path)
 
 class Product(BaseModel):
     length: float
