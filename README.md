@@ -1,6 +1,23 @@
 # smart-packaging-optimizer
 Smart Packaging Size Optimizer + Waste Analytics Dashboard for Retail
 
+## Development notes
+
+- The frontend is a Streamlit app (`frontend/app.py`) that communicates
+  with a FastAPI backend (`backend/app.py`). During local development the
+  frontend expects the API to be running at `http://127.0.0.1:8000`.
+  
+- Clicking **Optimize Packaging** will POST to `/optimize`. If nothing
+  happens, verify that the backend is reachable and also ensure the
+  `BACKEND_URL` secret (or env var) points to the correct host.
+
+- To override the endpoint (for staging/production) set a secret in
+  `.streamlit/secrets.toml`::
+
+    [general]
+    BACKEND_URL = "https://smart-packaging-optimizer.onrender.com"
+
+
 ## Getting Started
 
 The repository exposes a small command line interface via `main.py`.

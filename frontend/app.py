@@ -127,17 +127,37 @@ with tab1:
 
     if st.button("Optimize Packaging"):
 
+        # determine where to send the request.  in production we point at
+        # the deployed API; during local development we hit localhost and
+        # include the `/optimize` path so the backend actually knows what to
+        # do.  users can override by setting BACKEND_URL in a secrets.toml
+        # or via environment variable.  empty or missing secrets file should
+        # not crash the app.
+        try:
+            base_url = st.secrets.get("BACKEND_URL")
+        except Exception:
+            base_url = None
+        if not base_url:
+            # fall back to environment variable too, useful for CI/containers
+            import os
+            base_url = os.environ.get("BACKEND_URL")
+        if not base_url:
+            base_url = "http://127.0.0.1:8000"
+        endpoint = f"{base_url.rstrip('/')}/optimize"
+
         try:
             response = requests.post(
-                "https://smart-packaging-optimizer.onrender.com",
+                endpoint,
                 json={
                     "length": length,
                     "width": width,
                     "height": height,
                     "weight": weight,
                     "fragile": fragile
-                }
+                },
+                timeout=5,
             )
+            response.raise_for_status()
 
             result = response.json()
 
@@ -163,8 +183,9 @@ with tab1:
             else:
                 st.warning("⚠ Low Sustainability Score")
 
-        except:
-            st.error("⚠ Backend not running. Start FastAPI server.")
+        except Exception as e:
+            st.error(f"⚠ Could not optimize packaging: {e}")
+            st.write("Make sure the backend API is running and reachable at", endpoint)
 
 # ---------------- INVENTORY TAB ----------------
 with tab2:
