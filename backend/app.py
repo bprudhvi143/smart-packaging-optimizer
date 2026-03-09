@@ -18,7 +18,8 @@ from sklearn.linear_model import LinearRegression
 from datetime import timedelta
 import os
 import uuid
-
+from dotenv import load_dotenv
+load_dotenv()
 app = FastAPI()
 
 # ensure database tables exist on startup

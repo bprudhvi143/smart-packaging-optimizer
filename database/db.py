@@ -14,7 +14,30 @@ def initialize_db():
     """Create required tables if they do not exist."""
     conn = get_connection()
     cur = conn.cursor()
-    # shipment table assumed to already exist; create inventory if missing
+    
+    # Create shipments table with proper schema
+    try:
+        cur.execute("DROP TABLE IF EXISTS shipments")
+    except mysql.connector.Error:
+        pass
+    
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS shipments (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        product_length FLOAT NOT NULL,
+        product_width FLOAT NOT NULL,
+        product_height FLOAT NOT NULL,
+        weight FLOAT NOT NULL,
+        selected_box VARCHAR(255) NOT NULL,
+        waste_percentage FLOAT NOT NULL,
+        co2_saved FLOAT NOT NULL,
+        cost_saved FLOAT NOT NULL,
+        sustainability_score FLOAT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """)
+    
+    # create inventory table
     cur.execute("""
     CREATE TABLE IF NOT EXISTS inventory (
         box_size VARCHAR(255) PRIMARY KEY,
@@ -22,6 +45,7 @@ def initialize_db():
         usage_count INT DEFAULT 0
     )
     """)
+    
     cur.execute("""
     CREATE TABLE IF NOT EXISTS reusable_packages (
         qr_id VARCHAR(255) PRIMARY KEY,
@@ -33,6 +57,7 @@ def initialize_db():
         FOREIGN KEY (box_size) REFERENCES inventory(box_size)
     )
     """)
+    
     # if the table existed previously with a column named `condition`,
     # attempt to rename it so future operations work without quoting.
     try:
@@ -43,6 +68,7 @@ def initialize_db():
     except mysql.connector.Error:
         # ignore errors (either column doesn't exist or already renamed)
         pass
+    
     conn.commit()
     cur.close()
     conn.close()
